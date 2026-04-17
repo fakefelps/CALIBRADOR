@@ -52,11 +52,11 @@ LOG_FG   = "#4ecb8d"
 # ─────────────────────────────────────────────
 DEFAULT = {
     # Assinatura
-    "ass_ancora":    "AE73",
-    "ass_offset_x":  0,
-    "ass_offset_y":  0,
-    "ass_largura":   150,
-    "ass_altura":    60,
+    "ass_ancora":    "AE72",
+    "ass_offset_x":  10,
+    "ass_offset_y":  -5,
+    "ass_largura":   170,
+    "ass_altura":    55,
     # Checkbox imagem
     "chk_ancora":    "AM70",
     "chk_offset_x":  0,
@@ -64,6 +64,21 @@ DEFAULT = {
     "chk_largura":   85,
     "chk_altura":    14,
     "esgoto_sim":    True,
+    # Geminadas
+    "gem_lot":       "nao_se_aplica",
+    "gem_cond":      "nao_se_aplica",
+}
+
+# Shapes de geminadas confirmados via drawing1.xml
+SHAPES_GEMINADAS = {
+    # Loteamentos (linha 64)
+    "lot_sim":  "QOCI,13.L0C-32;L0C-34^",
+    "lot_nao":  "QOCI,23.L0C-35;L0C-37^",
+    "lot_nsa":  "QOCI,33.L0C-38;L0C-40^",
+    # Condomínios (linha 65)
+    "cond_sim": "QOCN,13.L0C-32;L0C-34^",
+    "cond_nao": "QOCN,23.L0C-35;L0C-37^",
+    "cond_nsa": "QOCN,33.L0C-38;L0C-40^",
 }
 
 
@@ -215,7 +230,7 @@ def _detectar_shapes_esgoto(xlsx_path, log):
     return shape_sim, shape_nao, ancora_sim, ancora_nao
 
 
-def aplicar_checkbox_nativo(xlsx_path, esgoto_sim, log):
+def aplicar_checkbox_nativo(xlsx_path, esgoto_sim, log, gem_lot="nao_se_aplica", gem_cond="nao_se_aplica"):
     """Marca checkboxes manipulando diretamente o XML dos shapes."""
     import shutil as _sh
 
@@ -250,6 +265,20 @@ def aplicar_checkbox_nativo(xlsx_path, esgoto_sim, log):
                                 cor = "000000" if esgoto_sim else "FFFFFF"
                             elif shape_nao and nome == shape_nao:
                                 cor = "000000" if not esgoto_sim else "FFFFFF"
+                            # Geminadas loteamentos
+                            elif nome == SHAPES_GEMINADAS["lot_sim"]:
+                                cor = "000000" if gem_lot == "sim" else "FFFFFF"
+                            elif nome == SHAPES_GEMINADAS["lot_nao"]:
+                                cor = "000000" if gem_lot == "nao" else "FFFFFF"
+                            elif nome == SHAPES_GEMINADAS["lot_nsa"]:
+                                cor = "000000" if gem_lot == "nao_se_aplica" else "FFFFFF"
+                            # Geminadas condomínios
+                            elif nome == SHAPES_GEMINADAS["cond_sim"]:
+                                cor = "000000" if gem_cond == "sim" else "FFFFFF"
+                            elif nome == SHAPES_GEMINADAS["cond_nao"]:
+                                cor = "000000" if gem_cond == "nao" else "FFFFFF"
+                            elif nome == SHAPES_GEMINADAS["cond_nsa"]:
+                                cor = "000000" if gem_cond == "nao_se_aplica" else "FFFFFF"
                             if cor is None:
                                 continue
                             shapes_ok += 1
@@ -372,7 +401,10 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
             pythoncom.CoInitialize()
 
             log("• Aplicando checkboxes via método NATIVO (XML)...")
-            ok = aplicar_checkbox_nativo(saida_path, esgoto_sim, log)
+            gem_lot  = cfg.get("gem_lot",  "nao_se_aplica")
+            gem_cond = cfg.get("gem_cond", "nao_se_aplica")
+            ok = aplicar_checkbox_nativo(saida_path, esgoto_sim, log,
+                                         gem_lot=gem_lot, gem_cond=gem_cond)
             if not ok:
                 log("  ⚠ Nativo falhou — shapes não encontrados neste template")
 
@@ -580,6 +612,19 @@ class Calibrador(tk.Tk):
                        activebackground=BG, activeforeground=TEXTO,
                        font=("Segoe UI", 9)).pack(anchor="w", pady=4)
 
+        self._titulo(col_esq, "CASAS GEMINADAS (método nativo)")
+        _og = ["Não se aplica", "Sim", "Não"]
+        tk.Label(col_esq, text="Loteamentos (linha 64)",
+                 bg=BG, fg=TEXTO2, font=("Segoe UI", 8)).pack(anchor="w")
+        self.var_gem_lot = tk.StringVar(value="Não se aplica")
+        ttk.Combobox(col_esq, textvariable=self.var_gem_lot, values=_og,
+                     state="readonly", font=("Segoe UI", 9)).pack(fill="x", pady=(0,6))
+        tk.Label(col_esq, text="Condomínios (linha 65)",
+                 bg=BG, fg=TEXTO2, font=("Segoe UI", 8)).pack(anchor="w")
+        self.var_gem_cond = tk.StringVar(value="Não se aplica")
+        ttk.Combobox(col_esq, textvariable=self.var_gem_cond, values=_og,
+                     state="readonly", font=("Segoe UI", 9)).pack(fill="x", pady=(0,6))
+
         self._titulo(col_esq, "MÉTODO DO CHECKBOX")
         self.var_modo_checkbox = tk.StringVar(value="imagem")
         fr_mc = tk.Frame(col_esq, bg=BG)
@@ -713,6 +758,12 @@ class Calibrador(tk.Tk):
             "chk_largura":  i("chk_larg"),
             "chk_altura":   i("chk_alt"),
             "esgoto_sim":   self.var_esgoto.get(),
+            "gem_lot":      {"Não se aplica": "nao_se_aplica",
+                             "Sim": "sim", "Não": "nao"}.get(
+                             self.var_gem_lot.get(), "nao_se_aplica"),
+            "gem_cond":     {"Não se aplica": "nao_se_aplica",
+                             "Sim": "sim", "Não": "nao"}.get(
+                             self.var_gem_cond.get(), "nao_se_aplica"),
         }
 
     def _atualizar_copy(self):
