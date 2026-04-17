@@ -292,6 +292,21 @@ def aplicar_checkbox_nativo(xlsx_path, esgoto_sim, log):
         except: pass
         return False
 
+def _fechar_excel(xl, wb):
+    """Fecha wb e xl de forma segura, mata EXCEL.EXE se necessário."""
+    if wb is not None:
+        try: wb.Close(SaveChanges=False)
+        except Exception: pass
+    if xl is not None:
+        try: xl.Quit()
+        except Exception: pass
+        try:
+            import subprocess
+            subprocess.run(["taskkill", "/F", "/IM", "EXCEL.EXE"],
+                           capture_output=True, creationflags=0x08000000)
+        except Exception: pass
+
+
 def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkbox="imagem"):
     """
     Abre o memorial, insere assinatura + checkbox de preview e exporta PDF.
@@ -302,14 +317,25 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
     xlsx_tmp = None; xlsx_criou = False
 
     try:
-        # 1. Garantir .xlsx
+        # 1. Garantir .xlsx — nunca copiar sobre si mesmo
         log("• Preparando arquivo...")
         xlsx_tmp, xlsx_criou = _xls_para_xlsx_temp(memorial_path)
-        # Copiar para o saida_path para não modificar o original
-        shutil.copy2(xlsx_tmp, saida_path)
-        if xlsx_criou:
-            try: os.unlink(xlsx_tmp)
-            except: pass
+        src_real  = os.path.realpath(xlsx_tmp)
+        dest_real = os.path.realpath(saida_path)
+        if src_real == dest_real:
+            # Copiar para temp intermediário primeiro
+            import tempfile as _tmp
+            inter = _tmp.mktemp(suffix=".xlsx")
+            shutil.copy2(xlsx_tmp, inter)
+            if xlsx_criou:
+                try: os.unlink(xlsx_tmp)
+                except: pass
+            shutil.move(inter, saida_path)
+        else:
+            shutil.copy2(xlsx_tmp, saida_path)
+            if xlsx_criou:
+                try: os.unlink(xlsx_tmp)
+                except: pass
 
         # 2. Abrir no Excel
         log("• Abrindo no Excel...")
@@ -339,17 +365,11 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
             # Nativo: salvar SEM shapes extras → fechar tudo → modificar XML → reabrir
             log("• Salvando antes de aplicar checkboxes nativos...")
             wb.Save()
-            wb.Close(SaveChanges=False)
-            wb = None
-            xl.Quit()
-            xl = None
-            try:
-                import subprocess
-                subprocess.run(["taskkill", "/F", "/IM", "EXCEL.EXE"],
-                               capture_output=True, creationflags=0x08000000)
-            except: pass
+            _fechar_excel(xl, wb)
+            xl = None; wb = None
             pythoncom.CoUninitialize()
             import time; time.sleep(1)
+            pythoncom.CoInitialize()
 
             log("• Aplicando checkboxes via método NATIVO (XML)...")
             ok = aplicar_checkbox_nativo(saida_path, esgoto_sim, log)
@@ -357,7 +377,6 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
                 log("  ⚠ Nativo falhou — shapes não encontrados neste template")
 
             # Reabrir para exportar PDF
-            pythoncom.CoInitialize()
             xl = _criar_xl()
             wb = xl.Workbooks.Open(os.path.abspath(saida_path))
             try:
@@ -408,17 +427,7 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
         log(f"✗ ERRO: {e}")
         log(traceback.format_exc())
     finally:
-        if wb:
-            try: wb.Close(SaveChanges=False)
-            except: pass
-        if xl:
-            try: xl.Quit()
-            except: pass
-            try:
-                import subprocess
-                subprocess.run(["taskkill", "/F", "/IM", "EXCEL.EXE"],
-                               capture_output=True, creationflags=0x08000000)
-            except: pass
+        _fechar_excel(xl, wb)
         pythoncom.CoUninitialize()
 
 
@@ -738,6 +747,13 @@ class Calibrador(tk.Tk):
         if not memorial or not os.path.exists(memorial):
             messagebox.showerror("Erro", "Selecione um arquivo Memorial válido.")
             return
+        if "PREVIEW_MEMORIAL_CALIBRADOR" in os.path.basename(memorial):
+            messagebox.showerror(
+                "Arquivo inválido",
+                "Você selecionou o arquivo de PREVIEW gerado pelo calibrador.\n\n"
+                "Selecione o memorial ORIGINAL (.xls ou .xlsx)."
+            )
+            return
         try:
             cfg = self._cfg()
         except ValueError as e:
@@ -768,6 +784,13 @@ class Calibrador(tk.Tk):
             self.after(0, self.var_status.set, "✅ Preview gerado — verifique o PDF!")
         except Exception as e:
             self.after(0, self.var_status.set, f"✗ Erro: {e}")
+            self.after(0, self._log_insert, f"✗ ERRO FATAL: {e}")
+            # Garantir kill do Excel mesmo em erro não capturado
+            try:
+                import subprocess
+                subprocess.run(["taskkill", "/F", "/IM", "EXCEL.EXE"],
+                               capture_output=True, creationflags=0x08000000)
+            except Exception: pass
         finally:
             self.after(0, self.btn.configure, {
                 "state": "normal",
