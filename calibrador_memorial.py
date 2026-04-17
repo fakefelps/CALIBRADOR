@@ -768,15 +768,25 @@ class Calibrador(tk.Tk):
         def i(k): return int(v[k].get())
         def s(k): return v[k].get().strip()
         return {
-            "ass_ancora":  s("ass_ancora"),
-            "ass_offset_x": i("ass_off_x"),
-            "ass_offset_y": i("ass_off_y"),
-            "ass_largura":  i("ass_larg"),
-            "ass_altura":   i("ass_alt"),
-            "esgoto_sim":   self.var_esgoto.get(),
-            "gem_cond":     {"Não se aplica": "nao_se_aplica",
-                             "Sim": "sim", "Não": "nao"}.get(
-                             self.var_gem_cond.get(), "nao_se_aplica"),
+            "ass_ancora":       s("ass_ancora"),
+            "ass_offset_x":     i("ass_off_x"),
+            "ass_offset_y":     i("ass_off_y"),
+            "ass_largura":      i("ass_larg"),
+            "ass_altura":       i("ass_alt"),
+            "chk_sim_ancora":   s("chk_sim_ancora"),
+            "chk_sim_offset_x": i("chk_sim_off_x"),
+            "chk_sim_offset_y": i("chk_sim_off_y"),
+            "chk_sim_largura":  i("chk_sim_larg"),
+            "chk_sim_altura":   i("chk_sim_alt"),
+            "chk_nao_ancora":   s("chk_nao_ancora"),
+            "chk_nao_offset_x": i("chk_nao_off_x"),
+            "chk_nao_offset_y": i("chk_nao_off_y"),
+            "chk_nao_largura":  i("chk_nao_larg"),
+            "chk_nao_altura":   i("chk_nao_alt"),
+            "esgoto_sim":       self.var_esgoto.get(),
+            "gem_cond":         {"Não se aplica": "nao_se_aplica",
+                                 "Sim": "sim", "Não": "nao"}.get(
+                                 self.var_gem_cond.get(), "nao_se_aplica"),
         }
 
     def _atualizar_copy(self):
