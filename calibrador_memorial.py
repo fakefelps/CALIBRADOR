@@ -57,15 +57,20 @@ DEFAULT = {
     "ass_offset_y":  -5,
     "ass_largura":   170,
     "ass_altura":    55,
-    # Checkbox imagem
-    "chk_ancora":    "AM70",
-    "chk_offset_x":  0,
-    "chk_offset_y":  0,
-    "chk_largura":   85,
-    "chk_altura":    14,
+    # Checkbox imagem — SIM (célula AM70)
+    "chk_sim_ancora":   "AM70",
+    "chk_sim_offset_x": 0,
+    "chk_sim_offset_y": 0,
+    "chk_sim_largura":  35,
+    "chk_sim_altura":   11,
+    # Checkbox imagem — NÃO (célula AP70)
+    "chk_nao_ancora":   "AP70",
+    "chk_nao_offset_x": 0,
+    "chk_nao_offset_y": 0,
+    "chk_nao_largura":  35,
+    "chk_nao_altura":   11,
     "esgoto_sim":    True,
     # Geminadas
-    "gem_lot":       "nao_se_aplica",
     "gem_cond":      "nao_se_aplica",
 }
 
@@ -417,15 +422,21 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
                 ws = wb.Worksheets(1)
         else:
             chk_img = _obter_img_checkbox(esgoto_sim)
-            log(f"• Inserindo checkbox via IMAGEM em {cfg['chk_ancora']} "
-                f"({cfg['chk_largura']}×{cfg['chk_altura']}pt) "
-                f"[{'COM' if esgoto_sim else 'SEM'} esgoto]...")
-            _inserir_imagem_win32(
-                ws, chk_img,
-                cfg["chk_ancora"],
-                cfg["chk_offset_x"], cfg["chk_offset_y"],
-                cfg["chk_largura"],  cfg["chk_altura"],
-            )
+            chk_marcado = _obter_img_quadrado_preto()
+            if esgoto_sim:
+                log(f"• Checkbox SIM em {cfg['chk_sim_ancora']} "
+                    f"({cfg['chk_sim_largura']}×{cfg['chk_sim_altura']}pt)...")
+                _inserir_imagem_win32(ws, chk_marcado,
+                    cfg["chk_sim_ancora"],
+                    cfg["chk_sim_offset_x"], cfg["chk_sim_offset_y"],
+                    cfg["chk_sim_largura"],  cfg["chk_sim_altura"])
+            else:
+                log(f"• Checkbox NÃO em {cfg['chk_nao_ancora']} "
+                    f"({cfg['chk_nao_largura']}×{cfg['chk_nao_altura']}pt)...")
+                _inserir_imagem_win32(ws, chk_marcado,
+                    cfg["chk_nao_ancora"],
+                    cfg["chk_nao_offset_x"], cfg["chk_nao_offset_y"],
+                    cfg["chk_nao_largura"],  cfg["chk_nao_altura"])
 
         # 5. Salvar e exportar PDF
         wb.Save()
@@ -443,11 +454,18 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
         log(f'  ASSINATURA_EXCEL_OFFSET_Y_PT = {cfg["ass_offset_y"]}')
         log(f'  ASSINATURA_EXCEL_LARGURA_PT  = {cfg["ass_largura"]}')
         log(f'  ASSINATURA_EXCEL_ALTURA_PT   = {cfg["ass_altura"]}')
-        log(f'  CHECKBOX_ANCORA_FALLBACK     = "{cfg["chk_ancora"]}"')
-        log(f'  CHECKBOX_OFFSET_X_PT         = {cfg["chk_offset_x"]}')
-        log(f'  CHECKBOX_OFFSET_Y_PT         = {cfg["chk_offset_y"]}')
-        log(f'  CHECKBOX_LARGURA_PT          = {cfg["chk_largura"]}')
-        log(f'  CHECKBOX_ALTURA_PT           = {cfg["chk_altura"]}')
+        log(f'  # Checkbox SIM')
+        log(f'  CHECKBOX_SIM_ANCORA      = "{cfg["chk_sim_ancora"]}"')
+        log(f'  CHECKBOX_SIM_OFFSET_X_PT = {cfg["chk_sim_offset_x"]}')
+        log(f'  CHECKBOX_SIM_OFFSET_Y_PT = {cfg["chk_sim_offset_y"]}')
+        log(f'  CHECKBOX_SIM_LARGURA_PT  = {cfg["chk_sim_largura"]}')
+        log(f'  CHECKBOX_SIM_ALTURA_PT   = {cfg["chk_sim_altura"]}')
+        log(f'  # Checkbox NÃO')
+        log(f'  CHECKBOX_NAO_ANCORA      = "{cfg["chk_nao_ancora"]}"')
+        log(f'  CHECKBOX_NAO_OFFSET_X_PT = {cfg["chk_nao_offset_x"]}')
+        log(f'  CHECKBOX_NAO_OFFSET_Y_PT = {cfg["chk_nao_offset_y"]}')
+        log(f'  CHECKBOX_NAO_LARGURA_PT  = {cfg["chk_nao_largura"]}')
+        log(f'  CHECKBOX_NAO_ALTURA_PT   = {cfg["chk_nao_altura"]}')
 
         # Abrir PDF automaticamente
         try:
@@ -463,7 +481,15 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
         pythoncom.CoUninitialize()
 
 
+def _obter_img_quadrado_preto():
+    """Quadrado preto sólido — replica o shape marcado (■)."""
+    tmp = tempfile.mktemp(suffix=".png")
+    Image.new("RGBA", (20, 20), (0, 0, 0, 255)).save(tmp)
+    return tmp
+
+
 def _obter_img_checkbox(esgoto_sim):
+
     """
     Retorna caminho de imagem de checkbox.
     Tenta encontrar no diretório do script; se não, cria placeholder.
@@ -638,11 +664,6 @@ class Calibrador(tk.Tk):
                 font=("Segoe UI", 9),
             ).pack(anchor="w")
 
-        self._linha_campo(col_esq, "Célula âncora", "chk_ancora",  DEFAULT["chk_ancora"])
-        self._linha_spin(col_esq,  "Offset X (pt)",  "chk_off_x",  DEFAULT["chk_offset_x"], -200, 200)
-        self._linha_spin(col_esq,  "Offset Y (pt)",  "chk_off_y",  DEFAULT["chk_offset_y"], -200, 200)
-        self._linha_spin(col_esq,  "Largura (pt)",   "chk_larg",   DEFAULT["chk_largura"],   5,  400)
-        self._linha_spin(col_esq,  "Altura (pt)",    "chk_alt",    DEFAULT["chk_altura"],    5,  200)
 
         # ── Coluna direita: log ──
         self._titulo(col_dir, "LOG")
@@ -752,15 +773,7 @@ class Calibrador(tk.Tk):
             "ass_offset_y": i("ass_off_y"),
             "ass_largura":  i("ass_larg"),
             "ass_altura":   i("ass_alt"),
-            "chk_ancora":  s("chk_ancora"),
-            "chk_offset_x": i("chk_off_x"),
-            "chk_offset_y": i("chk_off_y"),
-            "chk_largura":  i("chk_larg"),
-            "chk_altura":   i("chk_alt"),
             "esgoto_sim":   self.var_esgoto.get(),
-            "gem_lot":      {"Não se aplica": "nao_se_aplica",
-                             "Sim": "sim", "Não": "nao"}.get(
-                             self.var_gem_lot.get(), "nao_se_aplica"),
             "gem_cond":     {"Não se aplica": "nao_se_aplica",
                              "Sim": "sim", "Não": "nao"}.get(
                              self.var_gem_cond.get(), "nao_se_aplica"),
@@ -777,11 +790,18 @@ class Calibrador(tk.Tk):
             f'ASSINATURA_EXCEL_OFFSET_Y_PT = {cfg["ass_offset_y"]}\n'
             f'ASSINATURA_EXCEL_LARGURA_PT  = {cfg["ass_largura"]}\n'
             f'ASSINATURA_EXCEL_ALTURA_PT   = {cfg["ass_altura"]}\n'
-            f'CHECKBOX_ANCORA_FALLBACK     = "{cfg["chk_ancora"]}"\n'
-            f'CHECKBOX_OFFSET_X_PT         = {cfg["chk_offset_x"]}\n'
-            f'CHECKBOX_OFFSET_Y_PT         = {cfg["chk_offset_y"]}\n'
-            f'CHECKBOX_LARGURA_PT          = {cfg["chk_largura"]}\n'
-            f'CHECKBOX_ALTURA_PT           = {cfg["chk_altura"]}\n'
+            f'# Checkbox SIM\n'
+            f'CHECKBOX_SIM_ANCORA      = "{cfg["chk_sim_ancora"]}"\n'
+            f'CHECKBOX_SIM_OFFSET_X_PT = {cfg["chk_sim_offset_x"]}\n'
+            f'CHECKBOX_SIM_OFFSET_Y_PT = {cfg["chk_sim_offset_y"]}\n'
+            f'CHECKBOX_SIM_LARGURA_PT  = {cfg["chk_sim_largura"]}\n'
+            f'CHECKBOX_SIM_ALTURA_PT   = {cfg["chk_sim_altura"]}\n'
+            f'# Checkbox NÃO\n'
+            f'CHECKBOX_NAO_ANCORA      = "{cfg["chk_nao_ancora"]}"\n'
+            f'CHECKBOX_NAO_OFFSET_X_PT = {cfg["chk_nao_offset_x"]}\n'
+            f'CHECKBOX_NAO_OFFSET_Y_PT = {cfg["chk_nao_offset_y"]}\n'
+            f'CHECKBOX_NAO_LARGURA_PT  = {cfg["chk_nao_largura"]}\n'
+            f'CHECKBOX_NAO_ALTURA_PT   = {cfg["chk_nao_altura"]}\n'
         )
         self.txt_copy.delete("1.0", "end")
         self.txt_copy.insert("1.0", txt)
