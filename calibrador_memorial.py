@@ -336,7 +336,8 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
         # 4. Checkbox — nativo ou imagem
         esgoto_sim = cfg["esgoto_sim"]
         if modo_checkbox == "nativo":
-            log("• Aplicando checkboxes via método NATIVO (XML)...")
+            # Nativo: salvar SEM shapes extras → fechar tudo → modificar XML → reabrir
+            log("• Salvando antes de aplicar checkboxes nativos...")
             wb.Save()
             wb.Close(SaveChanges=False)
             wb = None
@@ -348,10 +349,13 @@ def gerar_preview(memorial_path, ass_img_path, cfg, saida_path, log, modo_checkb
                                capture_output=True, creationflags=0x08000000)
             except: pass
             pythoncom.CoUninitialize()
+            import time; time.sleep(1)
 
+            log("• Aplicando checkboxes via método NATIVO (XML)...")
             ok = aplicar_checkbox_nativo(saida_path, esgoto_sim, log)
             if not ok:
-                log("  ⚠ Nativo falhou — tente o modo Imagem")
+                log("  ⚠ Nativo falhou — shapes não encontrados neste template")
+
             # Reabrir para exportar PDF
             pythoncom.CoInitialize()
             xl = _criar_xl()
@@ -439,20 +443,28 @@ def _obter_img_checkbox(esgoto_sim):
         if c.exists():
             return str(c)
 
-    # Placeholder: retângulo azul com "SIM" ou "NÃO" marcado
+    # Placeholder: dois quadrados — o marcado fica preto (igual ao shape original)
+    # Dimensões proporcionais a ~14pt altura x 85pt largura
+    W, H = 170, 28
+    SZ = H - 4  # tamanho do quadrado
     tmp = tempfile.mktemp(suffix=".png")
-    img = Image.new("RGBA", (200, 40), (255, 255, 255, 0))
+    img = Image.new("RGBA", (W, H), (255, 255, 255, 0))
     draw = ImageDraw.Draw(img)
-    draw.rectangle([2, 2, 38, 38], outline=(0, 0, 0, 255), width=2)
-    draw.rectangle([102, 2, 138, 38], outline=(0, 0, 0, 255), width=2)
+
+    # Quadrado SIM (esquerda)
+    sim_x = 2
     if esgoto_sim:
-        draw.line([5, 20, 15, 35], fill=(0, 100, 200, 255), width=3)
-        draw.line([15, 35, 35, 5], fill=(0, 100, 200, 255), width=3)
-        draw.text((45, 10), "Sim ✓  Não □", fill=(0, 0, 0, 255))
+        draw.rectangle([sim_x, 2, sim_x + SZ, 2 + SZ], fill=(0, 0, 0, 255))   # ■ preto
     else:
-        draw.line([105, 20, 115, 35], fill=(0, 100, 200, 255), width=3)
-        draw.line([115, 35, 135, 5], fill=(0, 100, 200, 255), width=3)
-        draw.text((45, 10), "Sim □  Não ✓", fill=(0, 0, 0, 255))
+        draw.rectangle([sim_x, 2, sim_x + SZ, 2 + SZ], outline=(0, 0, 0, 255), width=2)  # □
+
+    # Quadrado NÃO (direita)
+    nao_x = W // 2 + 4
+    if not esgoto_sim:
+        draw.rectangle([nao_x, 2, nao_x + SZ, 2 + SZ], fill=(0, 0, 0, 255))   # ■ preto
+    else:
+        draw.rectangle([nao_x, 2, nao_x + SZ, 2 + SZ], outline=(0, 0, 0, 255), width=2)  # □
+
     img.save(tmp)
     return tmp
 
