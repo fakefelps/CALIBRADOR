@@ -473,24 +473,64 @@ class Calibrador(tk.Tk):
     # ── UI ──────────────────────────────────
 
     def _criar_ui(self):
-        # Cabeçalho
+        # ── Cabeçalho fixo ──
         hdr = tk.Frame(self, bg=BG, pady=14)
         hdr.pack(fill="x", padx=24)
         tk.Label(hdr, text="CALIBRADOR DO MEMORIAL",
                  font=("Segoe UI", 16, "bold"), fg=TEXTO, bg=BG).pack(anchor="w")
         tk.Label(hdr, text="Ajuste assinatura e checkbox • copie os valores para o app.py",
                  font=("Segoe UI", 9), fg=TEXTO2, bg=BG).pack(anchor="w")
-
         tk.Frame(self, bg=BORDA, height=1).pack(fill="x")
 
+        # ── Botão GERAR PREVIEW fixo no rodapé — sempre visível ──
+        rodape = tk.Frame(self, bg=BG, pady=10)
+        rodape.pack(side="bottom", fill="x", padx=24)
+        tk.Frame(rodape, bg=BORDA, height=1).pack(fill="x", pady=(0, 8))
+        tk.Label(rodape,
+                 text="💡 Teste os dois métodos de checkbox e compare o resultado no PDF",
+                 bg=BG, fg=ACENTO2, font=("Segoe UI", 9)).pack(anchor="w", pady=(0, 4))
+        self.btn = tk.Button(rodape, text="⚡  GERAR PREVIEW (abre PDF automaticamente)",
+                             command=self._iniciar,
+                             bg=ACENTO, fg=TEXTO, relief="flat",
+                             font=("Segoe UI", 12, "bold"), pady=10)
+        self.btn.pack(fill="x")
+        self.var_status = tk.StringVar(value="Aguardando...")
+        tk.Label(rodape, textvariable=self.var_status,
+                 bg=BG, fg=TEXTO2, font=("Segoe UI", 9)).pack(anchor="w", pady=(4, 0))
+
+        # ── Corpo principal ──
+        tk.Frame(self, bg=BORDA, height=1).pack(fill="x")
         body = tk.Frame(self, bg=BG)
-        body.pack(fill="both", expand=True, padx=24, pady=12)
+        body.pack(fill="both", expand=True, padx=0, pady=0)
 
-        col_esq = tk.Frame(body, bg=BG)
-        col_esq.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        # Coluna esquerda COM scroll
+        frame_esq_outer = tk.Frame(body, bg=BG, width=320)
+        frame_esq_outer.pack(side="left", fill="y", padx=(24, 0))
+        frame_esq_outer.pack_propagate(False)
 
+        canvas_esq = tk.Canvas(frame_esq_outer, bg=BG, highlightthickness=0)
+        sb_esq = tk.Scrollbar(frame_esq_outer, orient="vertical", command=canvas_esq.yview)
+        canvas_esq.configure(yscrollcommand=sb_esq.set)
+        sb_esq.pack(side="right", fill="y")
+        canvas_esq.pack(side="left", fill="both", expand=True)
+
+        col_esq = tk.Frame(canvas_esq, bg=BG)
+        win_id = canvas_esq.create_window((0, 0), window=col_esq, anchor="nw")
+
+        def _on_configure(event):
+            canvas_esq.configure(scrollregion=canvas_esq.bbox("all"))
+            canvas_esq.itemconfig(win_id, width=canvas_esq.winfo_width())
+        col_esq.bind("<Configure>", _on_configure)
+
+        # Scroll com mouse na coluna esquerda
+        def _on_mousewheel(event):
+            canvas_esq.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        canvas_esq.bind("<MouseWheel>", _on_mousewheel)
+        col_esq.bind("<MouseWheel>", _on_mousewheel)
+
+        # Coluna direita fixa
         col_dir = tk.Frame(body, bg=BG)
-        col_dir.pack(side="right", fill="both", expand=True, padx=(10, 0))
+        col_dir.pack(side="right", fill="both", expand=True, padx=(10, 24))
 
         # ── Coluna esquerda ──
         self._titulo(col_esq, "ARQUIVOS")
@@ -561,25 +601,7 @@ class Calibrador(tk.Tk):
                   bg=BORDA, fg=TEXTO, relief="flat",
                   font=("Segoe UI", 9, "bold"), pady=6).pack(fill="x", pady=(0, 8))
 
-        # Botão principal
-        tk.Frame(self, bg=BORDA, height=1).pack(fill="x")
-        rodape = tk.Frame(self, bg=BG, pady=12)
-        rodape.pack(fill="x", padx=24)
 
-        # Linha informativa sobre os dois testes
-        tk.Label(rodape,
-                 text="💡 Teste os dois métodos de checkbox e compare o resultado no PDF",
-                 bg=BG, fg=ACENTO2, font=("Segoe UI", 9)).pack(anchor="w", pady=(0, 6))
-
-        self.btn = tk.Button(rodape, text="⚡  GERAR PREVIEW (abre PDF automaticamente)",
-                             command=self._iniciar,
-                             bg=ACENTO, fg=TEXTO, relief="flat",
-                             font=("Segoe UI", 12, "bold"), pady=12)
-        self.btn.pack(fill="x")
-
-        self.var_status = tk.StringVar(value="Aguardando...")
-        tk.Label(rodape, textvariable=self.var_status,
-                 bg=BG, fg=TEXTO2, font=("Segoe UI", 9)).pack(anchor="w", pady=(6, 0))
 
         # Vincular atualização automática dos valores
         for v in self._vars.values():
